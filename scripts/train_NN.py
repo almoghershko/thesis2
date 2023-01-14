@@ -4,9 +4,12 @@
 # In[1]:
 
 
-def is_interactive():
-    import __main__ as main
-    return not hasattr(main, '__file__')
+def is_jupyter():
+    try:
+        __IPYTHON__
+        return True
+    except NameError:
+        return False
 
 
 # # Pip Install
@@ -14,7 +17,7 @@ def is_interactive():
 # In[2]:
 
 
-if is_interactive():
+if is_jupyter():
     get_ipython().system('pip install boto3 astropy sfdmap progressbar2 GPUtil')
 
 
@@ -127,7 +130,7 @@ dist_mat_test = dist_mat[I_test,:][:,I_test]
 # In[11]:
 
 
-if is_interactive():
+if is_jupyter():
     X_train = X_train[:100,:]
     X_test = X_test[:10,:]
     dist_mat_train = dist_mat_train[:100,:][:,:100]
@@ -268,7 +271,7 @@ sub_epochs = 5
 N_chunks = int(epochs/sub_epochs)
 loss_history = []
 val_loss_history = []
-verbosity = 1 if is_interactive() else 2
+verbosity = 1 if is_jupyter() else 2
 
 # training loop
 print('Training for {0} full epochs, and stopping for saving every {1} full epochs, for a total of {2} stages.'.format(epochs,sub_epochs, N_chunks))
