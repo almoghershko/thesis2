@@ -14,7 +14,8 @@ def is_interactive():
 # In[2]:
 
 
-get_ipython().system('pip install boto3 astropy sfdmap progressbar2 GPUtil')
+if is_interactive():
+    get_ipython().system('pip install boto3 astropy sfdmap progressbar2 GPUtil')
 
 
 # # Initialization
@@ -29,7 +30,7 @@ import tensorflow as tf
 assert tf.config.list_physical_devices('GPU')[0].device_type == 'GPU', 'GPU is not available!'
 
 
-# In[23]:
+# In[4]:
 
 
 # imports
@@ -141,7 +142,7 @@ if is_interactive():
 N_features = X_train.shape[1]
 
 
-# In[14]:
+# In[13]:
 
 
 from tensorflow.keras import applications
@@ -159,7 +160,7 @@ tf.random.set_seed(seed)
 
 # ## Embedding Network
 
-# In[15]:
+# In[14]:
 
 
 hidden_size = 512
@@ -206,7 +207,7 @@ encoding.summary()
 
 # ## Siamese Network
 
-# In[16]:
+# In[15]:
 
 
 first_input = layers.Input(name="first_input", shape=(N_features))
@@ -225,7 +226,7 @@ siamese_network.summary()
 
 # ## Siamese Model
 
-# In[17]:
+# In[16]:
 
 
 siamese_model = SiameseModel(siamese_network, dist_loss='L1')
@@ -234,14 +235,14 @@ siamese_model.compile(optimizer=optimizers.Adam(0.001))
 
 # # Train Model
 
-# In[18]:
+# In[17]:
 
 
 train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=False, norm=True)
 test_gen = DistillationDataGenerator(X_test, dist_mat_test, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=False, norm=True)
 
 
-# In[25]:
+# In[18]:
 
 
 def plot_loss(fig, ax, e, loss_history, val_loss_history):
@@ -259,7 +260,7 @@ def plot_loss(fig, ax, e, loss_history, val_loss_history):
     fig.canvas.draw()
 
 
-# In[28]:
+# In[19]:
 
 
 epochs = 50
@@ -350,7 +351,7 @@ for i_chunk in range(N_chunks):
 
 # # Inference
 
-# In[30]:
+# In[20]:
 
 
 # predict
@@ -359,7 +360,7 @@ data_gen = DistillationDataGenerator(X_train,  dist_mat_train, batch_size=128, s
 Z_NN = siamese_model.predict(data_gen, verbose=verbosity)
 
 
-# In[33]:
+# In[21]:
 
 
 # create full distance matrix
@@ -370,7 +371,7 @@ D_NN = D_NN.T
 D_NN[np.triu_indices(N)] = Z_NN
 
 
-# In[35]:
+# In[22]:
 
 
 # save the distance matrix
