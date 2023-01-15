@@ -1,29 +1,30 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
-def is_jupyter():
-    try:
-        __IPYTHON__
-        return True
-    except NameError:
-        return False
+try:
+    __IPYTHON__
+    is_notebook = True
+    print('Notebook mode')
+except NameError:
+    is_notebook = False
+    print('Script mode')
 
 
 # # Pip Install
 
-# In[2]:
+# In[ ]:
 
 
-if is_jupyter():
+if is_notebook:
     get_ipython().system('pip install boto3 astropy sfdmap progressbar2 GPUtil')
 
 
 # # Initialization
 
-# In[3]:
+# In[ ]:
 
 
 # Make sure a GPU is available
@@ -33,7 +34,7 @@ import tensorflow as tf
 assert tf.config.list_physical_devices('GPU')[0].device_type == 'GPU', 'GPU is not available!'
 
 
-# In[4]:
+# In[ ]:
 
 
 # imports
@@ -75,13 +76,13 @@ from NN import DistanceLayer, SiameseModel, DistillationDataGenerator
 
 # # Prepare Data
 
-# In[5]:
+# In[ ]:
 
 
 model_name = 'NN'
 
 
-# In[6]:
+# In[ ]:
 
 
 # prepare model paths
@@ -94,7 +95,7 @@ s3_data_train_dir_path = os.path.join(s3_data_model_dir_path, 'train')
 s3_data_test_dir_path = os.path.join(s3_data_model_dir_path, 'test')
 
 
-# In[7]:
+# In[ ]:
 
 
 # load data
@@ -104,7 +105,7 @@ X_train = from_s3_npy(s3_client, bucket_name, os.path.join(s3_data_train_dir_pat
 X_test = from_s3_npy(s3_client, bucket_name, os.path.join(s3_data_test_dir_path, 'spec.npy'))
 
 
-# In[8]:
+# In[ ]:
 
 
 # gs_SmallRF_train = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_dir_path, 'SmallRF', 'train', 'gs.pkl')) # <- This is equal to g_NN
@@ -113,24 +114,25 @@ gs_train = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_train_dir_pa
 gs_test = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_test_dir_path, 'gs.pkl'))
 
 
-# In[9]:
+# In[ ]:
 
 
 I_train = np.array([np.where(gs.index == i)[0][0] for i in gs_train.index])
 I_test = np.array([np.where(gs.index == i)[0][0] for i in gs_test.index])
 
 
-# In[10]:
+# In[ ]:
 
 
 dist_mat_train = dist_mat[I_train,:][:,I_train]
 dist_mat_test = dist_mat[I_test,:][:,I_test]
 
 
-# In[11]:
+# In[ ]:
 
 
-if is_jupyter():
+if is_notebook:
+    print('Notebook mode: running on a tiny slice of the data')
     X_train = X_train[:100,:]
     X_test = X_test[:10,:]
     dist_mat_train = dist_mat_train[:100,:][:,:100]
@@ -139,13 +141,13 @@ if is_jupyter():
 
 # # Creating the model
 
-# In[12]:
+# In[ ]:
 
 
 N_features = X_train.shape[1]
 
 
-# In[13]:
+# In[ ]:
 
 
 from tensorflow.keras import applications
@@ -163,7 +165,7 @@ tf.random.set_seed(seed)
 
 # ## Embedding Network
 
-# In[14]:
+# In[ ]:
 
 
 hidden_size = 512
@@ -210,7 +212,7 @@ encoding.summary()
 
 # ## Siamese Network
 
-# In[15]:
+# In[ ]:
 
 
 first_input = layers.Input(name="first_input", shape=(N_features))
@@ -229,7 +231,7 @@ siamese_network.summary()
 
 # ## Siamese Model
 
-# In[16]:
+# In[ ]:
 
 
 siamese_model = SiameseModel(siamese_network, dist_loss='L1')
@@ -238,14 +240,14 @@ siamese_model.compile(optimizer=optimizers.Adam(0.001))
 
 # # Train Model
 
-# In[17]:
+# In[ ]:
 
 
-train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=False, norm=True)
-test_gen = DistillationDataGenerator(X_test, dist_mat_test, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=False, norm=True)
+train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=(not is_notebook), norm=True)
+test_gen = DistillationDataGenerator(X_test, dist_mat_test, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=(not is_notebook), norm=True)
 
 
-# In[18]:
+# In[ ]:
 
 
 def plot_loss(fig, ax, e, loss_history, val_loss_history):
@@ -263,7 +265,7 @@ def plot_loss(fig, ax, e, loss_history, val_loss_history):
     fig.canvas.draw()
 
 
-# In[19]:
+# In[ ]:
 
 
 epochs = 50
@@ -271,7 +273,7 @@ sub_epochs = 5
 N_chunks = int(epochs/sub_epochs)
 loss_history = []
 val_loss_history = []
-verbosity = 1 if is_jupyter() else 2
+verbosity = 1 if is_notebook else 2
 
 # training loop
 print('Training for {0} full epochs, and stopping for saving every {1} full epochs, for a total of {2} stages.'.format(epochs,sub_epochs, N_chunks))
@@ -354,7 +356,7 @@ for i_chunk in range(N_chunks):
 
 # # Inference
 
-# In[20]:
+# In[ ]:
 
 
 # predict
@@ -363,7 +365,7 @@ data_gen = DistillationDataGenerator(X_train,  dist_mat_train, batch_size=128, s
 Z_NN = siamese_model.predict(data_gen, verbose=verbosity)
 
 
-# In[21]:
+# In[ ]:
 
 
 # create full distance matrix
@@ -374,7 +376,7 @@ D_NN = D_NN.T
 D_NN[np.triu_indices(N)] = Z_NN
 
 
-# In[22]:
+# In[ ]:
 
 
 # save the distance matrix
