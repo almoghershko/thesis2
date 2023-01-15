@@ -38,6 +38,16 @@ class DistillationDataGenerator(utils.Sequence):
             #self.couples = np.transpose([np.tile(np.arange(self.N_samples), self.N_samples), np.repeat(np.arange(self.N_samples), self.N_samples)])
             self.couples = np.stack(np.triu_indices(self.N_samples), axis=1)
         self.on_epoch_end()
+        
+        print('DataGenerator initialized with:')
+        print('    X shape = {0}x{1}'.format(self.X.shape[0], self.X.shape[1]))
+        print('    D shape = {0}x{1}'.format(self.D.shape[0], self.D.shape[1]))
+        print('    batch_size = {0}'.format(self.batch_size))
+        print('    shuffle = {0}'.format(self.shuffle))
+        print('    full_epoch = {0}'.format(self.full_epoch))
+        print('    norm = {0}'.format(self.norm))
+        print('    noise = {0}'.format(self.noise))
+        print('    nosnr_range_dbise = {0}'.format(str(self.snr_range_db)))
 
     def __len__(self):
         if self.full_epoch:
