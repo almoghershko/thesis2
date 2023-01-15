@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 try:
@@ -15,7 +15,7 @@ except NameError:
 
 # # Pip Install
 
-# In[ ]:
+# In[2]:
 
 
 if is_notebook:
@@ -24,7 +24,7 @@ if is_notebook:
 
 # # Initialization
 
-# In[ ]:
+# In[3]:
 
 
 # Make sure a GPU is available
@@ -34,7 +34,7 @@ import tensorflow as tf
 assert tf.config.list_physical_devices('GPU')[0].device_type == 'GPU', 'GPU is not available!'
 
 
-# In[ ]:
+# In[4]:
 
 
 # imports
@@ -76,13 +76,13 @@ from NN import DistanceLayer, SiameseModel, DistillationDataGenerator
 
 # # Prepare Data
 
-# In[ ]:
+# In[5]:
 
 
 model_name = 'NN'
 
 
-# In[ ]:
+# In[6]:
 
 
 # prepare model paths
@@ -92,62 +92,70 @@ s3_model_test_dir_path = os.path.join(s3_model_dir_path, 'test')
 # prepare data paths
 s3_data_model_dir_path = os.path.join(s3_data_dir_path, model_name)
 s3_data_train_dir_path = os.path.join(s3_data_model_dir_path, 'train')
-s3_data_test_dir_path = os.path.join(s3_data_model_dir_path, 'test')
+s3_data_val_dir_path = os.path.join(s3_data_model_dir_path, 'val')
+s3_data_test_dir_path = os.path.join(s3_data_dir_path, 'SmallRF', 'test')
 
 
-# In[ ]:
+# In[7]:
 
 
 # load data
 dist_mat_path = os.path.join(s3_models_dir_path, 'SmallRF', 'train', 'dist_mat.npy')
 dist_mat = from_s3_npy(s3_client, bucket_name, dist_mat_path)
 X_train = from_s3_npy(s3_client, bucket_name, os.path.join(s3_data_train_dir_path, 'spec.npy'))
+X_val = from_s3_npy(s3_client, bucket_name, os.path.join(s3_data_val_dir_path, 'spec.npy'))
 X_test = from_s3_npy(s3_client, bucket_name, os.path.join(s3_data_test_dir_path, 'spec.npy'))
 
 
-# In[ ]:
+# In[8]:
 
 
 # gs_SmallRF_train = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_dir_path, 'SmallRF', 'train', 'gs.pkl')) # <- This is equal to g_NN
 gs = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_model_dir_path, 'gs.pkl'))
 gs_train = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_train_dir_path, 'gs.pkl'))
+gs_val = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_val_dir_path, 'gs.pkl'))
 gs_test = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_test_dir_path, 'gs.pkl'))
 
 
-# In[ ]:
+# In[9]:
 
 
 I_train = np.array([np.where(gs.index == i)[0][0] for i in gs_train.index])
-I_test = np.array([np.where(gs.index == i)[0][0] for i in gs_test.index])
+I_val = np.array([np.where(gs.index == i)[0][0] for i in gs_val.index])
 
 
-# In[ ]:
+# In[10]:
 
 
 dist_mat_train = dist_mat[I_train,:][:,I_train]
-dist_mat_test = dist_mat[I_test,:][:,I_test]
+dist_mat_val = dist_mat[I_val,:][:,I_val]
 
 
-# In[ ]:
+# In[11]:
 
 
 if is_notebook:
     print('Notebook mode: running on a tiny slice of the data')
-    X_train = X_train[:100,:]
-    X_test = X_test[:10,:]
-    dist_mat_train = dist_mat_train[:100,:][:,:100]
-    dist_mat_test = dist_mat_test[:10,:][:,:10]
+    N_nb = 100
+    X_train = X_train[:N_nb,:]
+    X_val = X_val[:N_nb,:]
+    X_test = X_test[:N_nb,:]
+    dist_mat_train = dist_mat_train[:N_nb,:][:,:N_nb]
+    dist_mat_val = dist_mat_val[:N_nb,:][:,:N_nb]
+    gs_train = gs_train[:N_nb]
+    gs_val = gs_val[:N_nb]
+    gs_test = gs_test[:N_nb]
 
 
 # # Creating the model
 
-# In[ ]:
+# In[12]:
 
 
 N_features = X_train.shape[1]
 
 
-# In[ ]:
+# In[13]:
 
 
 from tensorflow.keras import applications
@@ -165,7 +173,7 @@ tf.random.set_seed(seed)
 
 # ## Embedding Network
 
-# In[ ]:
+# In[14]:
 
 
 hidden_size = 512
@@ -212,7 +220,7 @@ encoding.summary()
 
 # ## Siamese Network
 
-# In[ ]:
+# In[15]:
 
 
 first_input = layers.Input(name="first_input", shape=(N_features))
@@ -231,7 +239,7 @@ siamese_network.summary()
 
 # ## Siamese Model
 
-# In[ ]:
+# In[16]:
 
 
 siamese_model = SiameseModel(siamese_network, dist_loss='L1')
@@ -240,14 +248,20 @@ siamese_model.compile(optimizer=optimizers.Adam(0.001))
 
 # # Train Model
 
-# In[ ]:
+# In[17]:
 
 
-train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=(not is_notebook), norm=True)
-test_gen = DistillationDataGenerator(X_test, dist_mat_test, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=(not is_notebook), norm=True)
+if is_notebook:
+    print('Notebook mode: running short epochs')
+    full_epoch = False
+else:
+    print('Script mode: running full epochs')
+    full_epoch = True
+train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=full_epoch, norm=True)
+val_gen = DistillationDataGenerator(X_val, dist_mat_val, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=full_epoch, norm=True)
 
 
-# In[ ]:
+# In[18]:
 
 
 def plot_loss(fig, ax, e, loss_history, val_loss_history):
@@ -260,16 +274,22 @@ def plot_loss(fig, ax, e, loss_history, val_loss_history):
                 line.set_ydata(val_loss_history)
     else:
         ax.plot(e, loss_history, label='training')
-        ax.plot(e, val_loss_history, label='test')
+        ax.plot(e, val_loss_history, label='validation')
         ax.legend()
     fig.canvas.draw()
 
 
-# In[ ]:
+# In[19]:
 
 
-epochs = 50
-sub_epochs = 5
+if is_notebook:
+    print('Notebook mode: running for 5 epochs')
+    epochs = 5
+    sub_epochs = 1
+else:
+    print('Script mode: running for 50 epochs')
+    epochs = 50
+    sub_epochs = 5
 N_chunks = int(epochs/sub_epochs)
 loss_history = []
 val_loss_history = []
@@ -287,9 +307,9 @@ for i_chunk in range(N_chunks):
     # train
     try:
         # for some reason, the first call to fit will throw KeyError...
-        history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=test_gen, verbose=verbosity)
+        history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=val_gen, verbose=verbosity)
     except KeyError:
-        history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=test_gen, verbose=verbosity)
+        history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=val_gen, verbose=verbosity)
     loss_history += history.history['loss']
     val_loss_history += history.history['val_loss']
     
@@ -309,14 +329,6 @@ for i_chunk in range(N_chunks):
     # plot the loss
     curr_epochs = (i_chunk+1)*sub_epochs
     e = np.arange(curr_epochs)+1
-    """
-    loss_ax.plot(e, loss_history, label='training')
-    loss_ax.plot(e, val_loss_history, label='test')
-    loss_ax.legend()
-    log_loss_ax.plot(e, loss_history, label='training')
-    log_loss_ax.plot(e, val_loss_history, label='test')
-    log_loss_ax.legend()
-    """
     plot_loss(loss_fig, loss_ax, e, loss_history, val_loss_history)
     plot_loss(log_loss_fig, log_loss_ax, e, loss_history, val_loss_history)
     plt.show()
@@ -356,29 +368,192 @@ for i_chunk in range(N_chunks):
 
 # # Inference
 
-# In[ ]:
+# In[20]:
 
 
-# predict
-batch_size = 128
-data_gen = DistillationDataGenerator(X_train,  dist_mat_train, batch_size=128, shuffle=False, seed=seed, full_epoch=True, norm=True)
-Z_NN = siamese_model.predict(data_gen, verbose=verbosity)
+def infer_dist_mat(model, X, verbosity):
+    # predict
+    data_gen = DistillationDataGenerator(X, np.zeros(shape=(X.shape[0], X.shape[0])), batch_size=128, shuffle=False, seed=seed, full_epoch=True, norm=True)
+    Z_NN = model.predict(data_gen, verbose=verbosity)
+    # create full distance matrix
+    N = int((-1+np.sqrt(1+8*len(Z_NN)))/2)
+    D_NN = np.zeros(shape=(N,N))
+    D_NN[np.triu_indices(N)] = Z_NN
+    D_NN = D_NN.T
+    D_NN[np.triu_indices(N)] = Z_NN
+    return D_NN
 
 
-# In[ ]:
+# ## Training set
+
+# In[23]:
 
 
-# create full distance matrix
-N = int((-1+np.sqrt(1+8*len(Z_NN)))/2)
-D_NN = np.zeros(shape=(N,N))
-D_NN[np.triu_indices(N)] = Z_NN
-D_NN = D_NN.T
-D_NN[np.triu_indices(N)] = Z_NN
+dist_mat = infer_dist_mat(siamese_model, X_train, verbosity)
+to_s3_npy(dist_mat, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'dist_mat.npy'))
 
 
-# In[ ]:
+# In[24]:
 
 
-# save the distance matrix
-to_s3_npy(D_NN, s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'dist_mat.npy'))
+weird_scores = np.mean(dist_mat, axis=1)
+to_s3_npy(weird_scores, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'weird_scores.npy'))
+
+
+# In[25]:
+
+
+from sklearn.manifold import TSNE
+sne = TSNE(n_components=2, perplexity=25, metric='precomputed', verbose=1, random_state=seed).fit_transform(dist_mat)
+to_s3_npy(sne, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne.npy'))
+
+
+# In[26]:
+
+
+fig = plt.figure()
+tmp = plt.hist(weird_scores, bins=60, color="g")
+plt.title("Weirdness score histogram")
+plt.ylabel("N")
+plt.xlabel("weirdness score")
+to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'weirdness_scores_histogram.png'))
+
+
+# In[27]:
+
+
+distances = dist_mat[np.tril_indices(dist_mat.shape[0], -1)]
+
+fig = plt.figure()
+tmp = plt.hist(distances, bins=100)
+plt.title("Distances histogram")
+plt.ylabel("N")
+plt.xlabel("distance")
+
+to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'distances_histogram.png'))
+
+
+# In[28]:
+
+
+sne_f1 = sne[:, 0]
+sne_f2 = sne[:, 1]
+
+fig = plt.figure(figsize=(10,7))
+ax = fig.add_subplot(111)
+im_scat = ax.scatter(sne_f1, sne_f2, s=3, c=weird_scores, cmap=plt.cm.get_cmap('jet'), picker=1)
+ax.set_xlabel('t-SNE Feature 1')
+ax.set_ylabel('t-SNE Feature 2')
+ax.set_title(r't-SNE Scatter Plot Colored by Weirdness score')
+clb = fig.colorbar(im_scat, ax=ax)
+clb.ax.set_ylabel('Weirdness', rotation=270)
+plt.show()
+
+to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne_colored_by_weirdness.png'))
+
+
+# In[29]:
+
+
+snr = gs_train.snMedian
+
+fig = plt.figure(figsize=(10,7))
+ax = fig.add_subplot(111)
+import matplotlib.colors as colors
+im_scat = ax.scatter(sne_f1, sne_f2, s=3, c=snr, cmap=plt.cm.get_cmap('jet'), norm=colors.LogNorm(vmin=snr.min(), vmax=80))
+ax.set_xlabel('t-SNE Feature 1')
+ax.set_ylabel('t-SNE Feature 2')
+ax.set_title(r't-SNE Scatter Plot Colored by SNR')
+clb = fig.colorbar(im_scat, ax=ax)
+clb.ax.set_ylabel('SNR', rotation=270)
+plt.show()
+
+to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne_colored_by_snr.png'))
+
+
+# ## Test set
+
+# In[30]:
+
+
+dist_mat_test = infer_dist_mat(siamese_model, X_test, verbosity)
+to_s3_npy(dist_mat_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'dist_mat.npy'))
+
+
+# In[31]:
+
+
+weird_scores_test = np.mean(dist_mat_test, axis=1)
+to_s3_npy(weird_scores_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'weird_scores.npy'))
+
+
+# In[32]:
+
+
+from sklearn.manifold import TSNE
+sne_test = TSNE(n_components=2, perplexity=25, metric='precomputed', verbose=1, random_state=seed).fit_transform(dist_mat_test)
+to_s3_npy(sne_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne.npy'))
+
+
+# In[33]:
+
+
+fig = plt.figure()
+tmp = plt.hist(weird_scores_test, bins=60, color="g")
+plt.title("Weirdness score histogram")
+plt.ylabel("N")
+plt.xlabel("weirdness score")
+to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'weirdness_scores_histogram.png'))
+
+
+# In[34]:
+
+
+distances_test = dist_mat_test[np.tril_indices(dist_mat_test.shape[0], -1)]
+
+fig = plt.figure()
+tmp = plt.hist(distances_test, bins=100)
+plt.title("Distances histogram")
+plt.ylabel("N")
+plt.xlabel("distance")
+
+to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'distances_histogram.png'))
+
+
+# In[35]:
+
+
+sne_f1_test = sne_test[:, 0]
+sne_f2_test = sne_test[:, 1]
+
+fig = plt.figure(figsize=(10,7))
+ax = fig.add_subplot(111)
+im_scat = ax.scatter(sne_f1_test, sne_f2_test, s=3, c=weird_scores_test, cmap=plt.cm.get_cmap('jet'), picker=1)
+ax.set_xlabel('t-SNE Feature 1')
+ax.set_ylabel('t-SNE Feature 2')
+ax.set_title(r't-SNE Scatter Plot Colored by Weirdness score')
+clb = fig.colorbar(im_scat, ax=ax)
+clb.ax.set_ylabel('Weirdness', rotation=270)
+plt.show()
+
+to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne_colored_by_weirdness.png'))
+
+
+# In[36]:
+
+
+snr_test = gs_test.snMedian
+
+fig = plt.figure(figsize=(10,7))
+ax = fig.add_subplot(111)
+import matplotlib.colors as colors
+im_scat = ax.scatter(sne_f1_test, sne_f2_test, s=3, c=snr_test, cmap=plt.cm.get_cmap('jet'), norm=colors.LogNorm(vmin=snr.min(), vmax=80))
+ax.set_xlabel('t-SNE Feature 1')
+ax.set_ylabel('t-SNE Feature 2')
+ax.set_title(r't-SNE Scatter Plot Colored by SNR')
+clb = fig.colorbar(im_scat, ax=ax)
+clb.ax.set_ylabel('SNR', rotation=270)
+plt.show()
+
+to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne_colored_by_snr.png'))
 
