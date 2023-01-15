@@ -47,7 +47,8 @@ class DistillationDataGenerator(utils.Sequence):
         print('    full_epoch = {0}'.format(self.full_epoch))
         print('    norm = {0}'.format(self.norm))
         print('    noise = {0}'.format(self.noise))
-        print('    nosnr_range_dbise = {0}'.format(str(self.snr_range_db)))
+        if self.noise:
+            print('    snr_range_db = {0}'.format(str(self.snr_range_db)))
 
     def __len__(self):
         if self.full_epoch:
