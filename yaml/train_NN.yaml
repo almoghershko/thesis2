@@ -17,7 +17,7 @@ spec:
                 - NVIDIA-A10
       containers:
       - name: container
-        image: almogh/tf-2.11
+        image: almogh/tf-almog
         imagePullPolicy: Always
         resources:
           requests:
@@ -35,7 +35,7 @@ spec:
             pip install -r thesis/requirements.txt;
             python thesis2/scripts/train_NN.py $MODEL_NAME &> stdout.txt;
             aws --endpoint https://s3-west.nrp-nautilus.io s3 cp ./stdout.txt s3://tau-astro/almogh/thesis2/models/$MODEL_NAME/train/;
-            tar -zcvf logs.tar.gz logs
+            tar -zcvf logs.tar.gz logs;
             aws --endpoint https://s3-west.nrp-nautilus.io s3 cp ./logs.tar.gz s3://tau-astro/almogh/thesis2/models/$MODEL_NAME/train/;
         env:
           - name: "MODEL_NAME"
@@ -44,4 +44,6 @@ spec:
             value: "4"
           - name: "CUDA_VISIBLE_DEVICES"
             value: "0,1,2,3"
+          - name: "TF_GPU_THREAD_MODE"
+            value: "gpu_private"
       restartPolicy: Never

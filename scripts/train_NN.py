@@ -22,9 +22,9 @@ except NameError:
 # In[2]:
 
 
-IsSmallDataSlice = True
+IsSmallDataSlice = False
 IsShortEpochs = False
-IsShortTraining = True
+IsShortTraining = False
 IsSaveModel = True
 
 
