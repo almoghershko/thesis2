@@ -13,9 +13,18 @@ except NameError:
     print('Script mode')
 
 
+# In[2]:
+
+
+IsSmallDataSlice = True
+IsShortEpochs = False
+IsShortTraining = True
+IsSaveModel = True
+
+
 # # Pip Install
 
-# In[2]:
+# In[3]:
 
 
 if is_notebook:
@@ -24,17 +33,83 @@ if is_notebook:
 
 # # Initialization
 
-# In[3]:
+# In[4]:
 
 
-# Make sure a GPU is available
 import GPUtil
 print('GPUs:\n{0}'.format('\n'.join(['('+str(i+1)+')\t'+gpu.name for i,gpu in enumerate(GPUtil.getGPUs())])))
+
+
+# In[5]:
+
+
+N_GPUs = len(GPUtil.getGPUs())
+
+
+# In[6]:
+
+
+gpu = GPUtil.getGPUs()[0]
+
+
+# In[7]:
+
+
+gpu.memoryFree
+
+
+# In[8]:
+
+
+get_ipython().system('echo TF_GPU_THREAD_MODE="gpu_private"')
+if N_GPUs>1:
+    if N_GPUs==2:
+        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=2')
+        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1"')
+    if N_GPUs==3:
+        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=3')
+        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2"')
+    if N_GPUs==4:
+        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=4')
+        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3"')
+    if N_GPUs==5:
+        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=5')
+        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4"')
+    if N_GPUs==6:
+        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=6')
+        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5"')
+    if N_GPUs==7:
+        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=7')
+        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6"')
+    if N_GPUs==8:
+        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=8')
+        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"')
+
+
+# In[9]:
+
+
+import os 
+if N_GPUs>1:
+    os.environ["TF_MIN_GPU_MULTIPROCESSOR_COUNT"]=str(N_GPUs)
+    os.environ["CUDA_VISIBLE_DEVICES"]=','.join([str(i) for i in range(N_GPUs)])
+os.environ["TF_GPU_THREAD_MODE"]="gpu_private"
+
+
+# In[10]:
+
+
 import tensorflow as tf
-assert tf.config.list_physical_devices('GPU')[0].device_type == 'GPU', 'GPU is not available!'
+assert len(tf.config.list_physical_devices('GPU'))==N_GPUs, 'Not all GPUs are available!'
 
 
-# In[4]:
+# In[11]:
+
+
+tf.config.list_physical_devices('GPU')
+
+
+# In[12]:
 
 
 # imports
@@ -76,27 +151,28 @@ from NN import DistanceLayer, SiameseModel, DistillationDataGenerator
 
 # # Prepare Data
 
-# In[5]:
+# In[13]:
 
 
-model_name = 'NN'
+data_model_name = 'NN'
+save_model_name = 'NN2'
 
 
-# In[6]:
+# In[14]:
 
 
 # prepare model paths
-s3_model_dir_path = os.path.join(s3_models_dir_path, model_name)
+s3_model_dir_path = os.path.join(s3_models_dir_path, save_model_name)
 s3_model_train_dir_path = os.path.join(s3_model_dir_path, 'train')
 s3_model_test_dir_path = os.path.join(s3_model_dir_path, 'test')
 # prepare data paths
-s3_data_model_dir_path = os.path.join(s3_data_dir_path, model_name)
+s3_data_model_dir_path = os.path.join(s3_data_dir_path, data_model_name)
 s3_data_train_dir_path = os.path.join(s3_data_model_dir_path, 'train')
 s3_data_val_dir_path = os.path.join(s3_data_model_dir_path, 'val')
 s3_data_test_dir_path = os.path.join(s3_data_dir_path, 'SmallRF', 'test')
 
 
-# In[7]:
+# In[15]:
 
 
 # load data
@@ -107,7 +183,7 @@ X_val = from_s3_npy(s3_client, bucket_name, os.path.join(s3_data_val_dir_path, '
 X_test = from_s3_npy(s3_client, bucket_name, os.path.join(s3_data_test_dir_path, 'spec.npy'))
 
 
-# In[8]:
+# In[16]:
 
 
 # gs_SmallRF_train = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_dir_path, 'SmallRF', 'train', 'gs.pkl')) # <- This is equal to g_NN
@@ -117,26 +193,26 @@ gs_val = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_val_dir_path, 
 gs_test = from_s3_pkl(s3_client, bucket_name, os.path.join(s3_data_test_dir_path, 'gs.pkl'))
 
 
-# In[9]:
+# In[17]:
 
 
 I_train = np.array([np.where(gs.index == i)[0][0] for i in gs_train.index])
 I_val = np.array([np.where(gs.index == i)[0][0] for i in gs_val.index])
 
 
-# In[10]:
+# In[18]:
 
 
 dist_mat_train = dist_mat[I_train,:][:,I_train]
 dist_mat_val = dist_mat[I_val,:][:,I_val]
 
 
-# In[11]:
+# In[19]:
 
 
-if is_notebook:
-    print('Notebook mode: running on a tiny slice of the data')
-    N_nb = 100
+if IsSmallDataSlice:
+    print('Running on a tiny slice of the data')
+    N_nb = 500
     X_train = X_train[:N_nb,:]
     X_val = X_val[:N_nb,:]
     X_test = X_test[:N_nb,:]
@@ -149,13 +225,23 @@ if is_notebook:
 
 # # Creating the model
 
-# In[12]:
+# In[20]:
 
 
 N_features = X_train.shape[1]
 
 
-# In[13]:
+# In[21]:
+
+
+from tensorflow.keras import mixed_precision
+policy = mixed_precision.Policy('mixed_float16')
+mixed_precision.set_global_policy(policy)
+print('Compute dtype: %s' % policy.compute_dtype)
+print('Variable dtype: %s' % policy.variable_dtype)
+
+
+# In[22]:
 
 
 from tensorflow.keras import applications
@@ -168,100 +254,133 @@ from tensorflow.keras import Model
 from tensorflow.keras import utils
 from tensorflow.keras import initializers
 
+from NN import DistanceLayer
+
 tf.random.set_seed(seed)
 
 
-# ## Embedding Network
-
-# In[14]:
+# In[23]:
 
 
 hidden_size = 512
 encoding_size = 128
 
-# input layer
-x_in = layers.Input(shape=(N_features, 1))
 
-# adding the network layers
-x = x_in
-x = layers.Conv1D(64, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
-x = layers.BatchNormalization()(x)
-x = activations.relu(x)
-x = layers.AveragePooling1D( 2, padding='same')(x)
-x = layers.Conv1D(32, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
-x = layers.BatchNormalization()(x)
-x = activations.relu(x)
-x = layers.AveragePooling1D( 2, padding='same')(x)
-x = layers.Conv1D(16, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
-x = layers.BatchNormalization()(x)
-x = activations.relu(x)
-x = layers.AveragePooling1D( 2, padding='same')(x)
-x = layers.Conv1D(8, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
-x = layers.BatchNormalization()(x)
-x = activations.relu(x)
-x = layers.AveragePooling1D( 2, padding='same')(x)
-x = layers.Conv1D(4, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
-x = layers.BatchNormalization()(x)
-x = activations.relu(x)
-x = layers.AveragePooling1D( 2, padding='same')(x)
-x = layers.Flatten()(x)
-x = layers.Dense(hidden_size, kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
-x = layers.BatchNormalization()(x)
-x = activations.relu(x)
-x = layers.Dense(encoding_size, kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
-x = layers.BatchNormalization()(x)
-x = activations.tanh(x)
-x_out = x
+# In[24]:
 
-# creating the model
-encoding = Model(x_in, x_out)
+
+if N_GPUs>1:
+    strategy = tf.distribute.MirroredStrategy()
+else:
+    strategy = tf.distribute.get_strategy()
+
+
+# In[25]:
+
+
+with strategy.scope():
+
+    ##############################
+    #     Embedding Network      #
+    ##############################
+    
+    # input layer
+    x_in = layers.Input(shape=(N_features, 1))
+
+    # adding the network layers
+    x = x_in
+    x = layers.Conv1D(64, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
+    x = layers.BatchNormalization()(x)
+    x = activations.relu(x)
+    x = layers.AveragePooling1D( 2, padding='same')(x)
+    x = layers.Conv1D(32, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
+    x = layers.BatchNormalization()(x)
+    x = activations.relu(x)
+    x = layers.AveragePooling1D( 2, padding='same')(x)
+    x = layers.Conv1D(16, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
+    x = layers.BatchNormalization()(x)
+    x = activations.relu(x)
+    x = layers.AveragePooling1D( 2, padding='same')(x)
+    x = layers.Conv1D(8, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
+    x = layers.BatchNormalization()(x)
+    x = activations.relu(x)
+    x = layers.AveragePooling1D( 2, padding='same')(x)
+    x = layers.Conv1D(4, 31, activation=None, padding='same', kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
+    x = layers.BatchNormalization()(x)
+    x = activations.relu(x)
+    x = layers.AveragePooling1D( 2, padding='same')(x)
+    x = layers.Flatten()(x)
+    x = layers.Dense(hidden_size, kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
+    x = layers.BatchNormalization()(x)
+    x = activations.relu(x)
+    x = layers.Dense(encoding_size, kernel_initializer=initializers.GlorotUniform(seed=seed))(x)
+    x = layers.BatchNormalization()(x)
+    #x = activations.tanh(x, dtype='float32')
+    x = layers.Activation('tanh', dtype='float32', name='encoding')(x)
+    x_out = x
+
+    # creating the model
+    encoding = Model(x_in, x_out)
+    
+    ##############################
+    #     Siamese Network        #
+    ##############################
+    first_input = layers.Input(name="first_input", shape=(N_features))
+    second_input = layers.Input(name="second_input", shape=(N_features))
+
+    first_encoding = encoding(first_input)
+    second_encoding = encoding(second_input)
+
+    #distance = tf.sqrt(tf.maximum(tf.reduce_sum(tf.square(first_encoding - second_encoding), -1),1e-9))
+    distance = DistanceLayer(dtype=mixed_precision.Policy('float32'))(first_encoding, second_encoding)
+
+    siamese_network = Model(
+        inputs=[first_input, second_input], outputs=distance
+    )
+    
+    ##############################
+    #     Siamese Model          #
+    ##############################
+    
+    siamese_model = SiameseModel(siamese_network, dist_loss='L1')
+
+optimizer = optimizers.Adam(0.001)
+optimizer = mixed_precision.LossScaleOptimizer(optimizer)
+    
+siamese_model.compile(optimizer=optimizer)
+
+
+# In[26]:
+
+
 encoding.summary()
 
 
-# ## Siamese Network
-
-# In[15]:
+# In[27]:
 
 
-first_input = layers.Input(name="first_input", shape=(N_features))
-second_input = layers.Input(name="second_input", shape=(N_features))
-
-first_encoding = encoding(first_input)
-second_encoding = encoding(second_input)
-
-distance = tf.sqrt(tf.maximum(tf.reduce_sum(tf.square(first_encoding - second_encoding), -1),1e-9))
-
-siamese_network = Model(
-    inputs=[first_input, second_input], outputs=distance
-)
 siamese_network.summary()
-
-
-# ## Siamese Model
-
-# In[16]:
-
-
-siamese_model = SiameseModel(siamese_network, dist_loss='L1')
-siamese_model.compile(optimizer=optimizers.Adam(0.001))
 
 
 # # Train Model
 
-# In[17]:
+# In[28]:
 
 
-if is_notebook:
-    print('Notebook mode: running short epochs')
+if IsShortEpochs:
+    print('Running short epochs')
     full_epoch = False
 else:
-    print('Script mode: running full epochs')
+    print('Running full epochs')
     full_epoch = True
-train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=full_epoch, norm=True)
-val_gen = DistillationDataGenerator(X_val, dist_mat_val, batch_size=128, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=full_epoch, norm=True)
+    
+batch_size = 128*N_GPUs
+
+train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=batch_size, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=full_epoch, norm=True)
+val_gen = DistillationDataGenerator(X_val, dist_mat_val, batch_size=batch_size, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=full_epoch, norm=True)
 
 
-# In[18]:
+# In[29]:
 
 
 def plot_loss(fig, ax, e, loss_history, val_loss_history):
@@ -279,15 +398,26 @@ def plot_loss(fig, ax, e, loss_history, val_loss_history):
     fig.canvas.draw()
 
 
-# In[19]:
+# In[30]:
 
 
-if is_notebook:
-    print('Notebook mode: running for 5 epochs')
-    epochs = 5
+# Create a TensorBoard callback
+from datetime import datetime
+logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+profile_batch = '{0},{1}'.format(str(int(len(train_gen)/2)),str(20+int(len(train_gen)/2)))
+print('profile_batch={0}'.format(profile_batch))
+tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
+                                                 histogram_freq = 1,
+                                                 profile_batch = profile_batch)
+
+
+# In[31]:
+
+
+if IsShortTraining:
+    epochs = 1
     sub_epochs = 1
 else:
-    print('Script mode: running for 50 epochs')
     epochs = 50
     sub_epochs = 5
 N_chunks = int(epochs/sub_epochs)
@@ -307,9 +437,11 @@ for i_chunk in range(N_chunks):
     # train
     try:
         # for some reason, the first call to fit will throw KeyError...
-        history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=val_gen, verbose=verbosity)
+        history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=val_gen, verbose=verbosity, callbacks = [tboard_callback], workers=N_GPUs, use_multiprocessing=True)
+        #history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=val_gen, verbose=verbosity, callbacks = [tboard_callback])
     except KeyError:
-        history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=val_gen, verbose=verbosity)
+        history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=val_gen, verbose=verbosity, callbacks = [tboard_callback], workers=N_GPUs, use_multiprocessing=True)
+        #history = siamese_model.fit(train_gen, epochs=sub_epochs, validation_data=val_gen, verbose=verbosity, callbacks = [tboard_callback])
     loss_history += history.history['loss']
     val_loss_history += history.history['val_loss']
     
@@ -338,37 +470,39 @@ for i_chunk in range(N_chunks):
     time_str = 'TOTAL TIME = {0:.3f} hours'.format((end_time - start_time)/3600)
     print(time_str)
     
-    # create a sub dir
-    s3_save_NN_dir_path_sub_epoch = os.path.join(s3_model_train_dir_path, 'after_{0}_epochs'.format((i_chunk+1)*sub_epochs))
-    # save the figures
-    to_s3_fig(loss_fig, s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'loss.png'))
-    to_s3_fig(log_loss_fig, s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'loss.png'))
-    # save the losses
-    to_s3_npy(np.array(loss_history), s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'loss.npy'))
-    to_s3_npy(np.array(val_loss_history), s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'val_loss.npy'))
-    # get model summary
-    stringlist = []
-    encoding.summary(print_fn=lambda x: stringlist.append(x))
-    encoding_summary = "\n".join(stringlist)
-    stringlist = []
-    siamese_network.summary(print_fn=lambda x: stringlist.append(x))
-    siamese_network_summary = "\n".join(stringlist)
-    # save log
-    log_s3(s3_client, bucket_name, s3_model_train_dir_path, 'NN_log.txt',
-        dist_mat_path = dist_mat_path,
-        s3_model_train_dir_path = s3_model_train_dir_path,
-        training_duration = time_str,
-        encoding_summary = encoding_summary,
-        siamese_network_summary = siamese_network_summary
-        )
-    # save the network
-    s3_model_path = os.path.join(s3_save_NN_dir_path_sub_epoch, 'model')
-    s3_save_TF_model(siamese_model, s3_client, bucket_name, s3_model_path)
+    if IsSaveModel:
+    
+        # create a sub dir
+        s3_save_NN_dir_path_sub_epoch = os.path.join(s3_model_train_dir_path, 'after_{0}_epochs'.format((i_chunk+1)*sub_epochs))
+        # save the figures
+        to_s3_fig(loss_fig, s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'loss.png'))
+        to_s3_fig(log_loss_fig, s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'loss.png'))
+        # save the losses
+        to_s3_npy(np.array(loss_history), s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'loss.npy'))
+        to_s3_npy(np.array(val_loss_history), s3_client, bucket_name, os.path.join(s3_save_NN_dir_path_sub_epoch, 'val_loss.npy'))
+        # get model summary
+        stringlist = []
+        encoding.summary(print_fn=lambda x: stringlist.append(x))
+        encoding_summary = "\n".join(stringlist)
+        stringlist = []
+        siamese_network.summary(print_fn=lambda x: stringlist.append(x))
+        siamese_network_summary = "\n".join(stringlist)
+        # save log
+        log_s3(s3_client, bucket_name, s3_model_train_dir_path, 'NN_log.txt',
+            dist_mat_path = dist_mat_path,
+            s3_model_train_dir_path = s3_model_train_dir_path,
+            training_duration = time_str,
+            encoding_summary = encoding_summary,
+            siamese_network_summary = siamese_network_summary
+            )
+        # save the network
+        s3_model_path = os.path.join(s3_save_NN_dir_path_sub_epoch, 'model')
+        s3_save_TF_model(siamese_model, s3_client, bucket_name, s3_model_path)
 
 
 # # Inference
 
-# In[20]:
+# In[ ]:
 
 
 def infer_dist_mat(model, X, verbosity):
@@ -386,21 +520,21 @@ def infer_dist_mat(model, X, verbosity):
 
 # ## Training set
 
-# In[23]:
+# In[ ]:
 
 
 dist_mat = infer_dist_mat(siamese_model, X_train, verbosity)
 to_s3_npy(dist_mat, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'dist_mat.npy'))
 
 
-# In[24]:
+# In[ ]:
 
 
 weird_scores = np.mean(dist_mat, axis=1)
 to_s3_npy(weird_scores, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'weird_scores.npy'))
 
 
-# In[25]:
+# In[ ]:
 
 
 from sklearn.manifold import TSNE
@@ -408,7 +542,7 @@ sne = TSNE(n_components=2, perplexity=25, metric='precomputed', verbose=1, rando
 to_s3_npy(sne, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne.npy'))
 
 
-# In[26]:
+# In[ ]:
 
 
 fig = plt.figure()
@@ -419,7 +553,7 @@ plt.xlabel("weirdness score")
 to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'weirdness_scores_histogram.png'))
 
 
-# In[27]:
+# In[ ]:
 
 
 distances = dist_mat[np.tril_indices(dist_mat.shape[0], -1)]
@@ -433,7 +567,7 @@ plt.xlabel("distance")
 to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'distances_histogram.png'))
 
 
-# In[28]:
+# In[ ]:
 
 
 sne_f1 = sne[:, 0]
@@ -452,7 +586,7 @@ plt.show()
 to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne_colored_by_weirdness.png'))
 
 
-# In[29]:
+# In[ ]:
 
 
 snr = gs_train.snMedian
@@ -473,21 +607,21 @@ to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'ts
 
 # ## Test set
 
-# In[30]:
+# In[ ]:
 
 
 dist_mat_test = infer_dist_mat(siamese_model, X_test, verbosity)
 to_s3_npy(dist_mat_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'dist_mat.npy'))
 
 
-# In[31]:
+# In[ ]:
 
 
 weird_scores_test = np.mean(dist_mat_test, axis=1)
 to_s3_npy(weird_scores_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'weird_scores.npy'))
 
 
-# In[32]:
+# In[ ]:
 
 
 from sklearn.manifold import TSNE
@@ -495,7 +629,7 @@ sne_test = TSNE(n_components=2, perplexity=25, metric='precomputed', verbose=1, 
 to_s3_npy(sne_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne.npy'))
 
 
-# In[33]:
+# In[ ]:
 
 
 fig = plt.figure()
@@ -506,7 +640,7 @@ plt.xlabel("weirdness score")
 to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'weirdness_scores_histogram.png'))
 
 
-# In[34]:
+# In[ ]:
 
 
 distances_test = dist_mat_test[np.tril_indices(dist_mat_test.shape[0], -1)]
@@ -520,7 +654,7 @@ plt.xlabel("distance")
 to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'distances_histogram.png'))
 
 
-# In[35]:
+# In[ ]:
 
 
 sne_f1_test = sne_test[:, 0]
@@ -539,7 +673,7 @@ plt.show()
 to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne_colored_by_weirdness.png'))
 
 
-# In[36]:
+# In[ ]:
 
 
 snr_test = gs_test.snMedian
