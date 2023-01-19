@@ -24,7 +24,7 @@ spec:
                 - NVIDIA-A100-80GB-PCIe-MIG-1g.10gb
       containers:
       - name: container
-        image: almogh/tf-almog
+        image: almogh/tf-2.11
         imagePullPolicy: Always
         resources:
           requests:
