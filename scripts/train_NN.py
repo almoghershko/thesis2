@@ -1,3 +1,9 @@
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("model_name", help="the name for the run", type=str)
+args = parser.parse_args()
+print('args:\n\t'+'\n\t'.join(f'{k} = {v}' for k, v in vars(args).items()))
+
 #!/usr/bin/env python
 # coding: utf-8
 
@@ -155,7 +161,7 @@ from NN import DistanceLayer, SiameseModel, DistillationDataGenerator
 
 
 data_model_name = 'NN'
-save_model_name = 'NN2'
+save_model_name = args.model_name
 
 
 # In[14]:
