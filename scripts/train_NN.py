@@ -66,30 +66,30 @@ gpu.memoryFree
 
 # In[8]:
 
-
-get_ipython().system('echo TF_GPU_THREAD_MODE="gpu_private"')
-if N_GPUs>1:
-    if N_GPUs==2:
-        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=2')
-        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1"')
-    if N_GPUs==3:
-        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=3')
-        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2"')
-    if N_GPUs==4:
-        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=4')
-        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3"')
-    if N_GPUs==5:
-        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=5')
-        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4"')
-    if N_GPUs==6:
-        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=6')
-        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5"')
-    if N_GPUs==7:
-        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=7')
-        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6"')
-    if N_GPUs==8:
-        get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=8')
-        get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"')
+if is_notebook:
+    get_ipython().system('echo TF_GPU_THREAD_MODE="gpu_private"')
+    if N_GPUs>1:
+        if N_GPUs==2:
+            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=2')
+            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1"')
+        if N_GPUs==3:
+            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=3')
+            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2"')
+        if N_GPUs==4:
+            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=4')
+            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3"')
+        if N_GPUs==5:
+            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=5')
+            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4"')
+        if N_GPUs==6:
+            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=6')
+            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5"')
+        if N_GPUs==7:
+            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=7')
+            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6"')
+        if N_GPUs==8:
+            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=8')
+            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"')
 
 
 # In[9]:
