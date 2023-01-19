@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: almoghershko-train-nn
+  name: almoghershko-train-nn-2
 spec:
   backoffLimit: 0
   template:
