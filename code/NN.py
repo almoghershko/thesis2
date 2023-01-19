@@ -106,8 +106,10 @@ class DistanceLayer(layers.Layer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    @tf.function
     def call(self, x, y):
-        dist = tf.reduce_sum(tf.square(x - y), -1)
+        #dist = tf.reduce_sum(tf.square(x - y), -1)
+        dist = tf.sqrt(tf.maximum(tf.reduce_sum(tf.square(x - y), -1),1e-9))
         return dist
         
 class NormalizeDistance(layers.Layer):
@@ -145,10 +147,12 @@ class SiameseModel(Model):
         if dist_loss=='L2':
             self.loss_func = L2
 
+    @tf.function
     def call(self, inputs):
         #print('<<<call>>>: inputs is {0} of len {1}'.format(str(type(inputs)), str(len(inputs))))
         return self.siamese_network(inputs)
 
+    @tf.function
     def train_step(self, data):
         # GradientTape is a context manager that records every operation that
         # you do inside. We are using it here to compute the loss so we can get
@@ -156,10 +160,12 @@ class SiameseModel(Model):
         # `compile()`.
         with tf.GradientTape() as tape:
             loss = self._compute_loss(data)
+            scaled_loss = self.optimizer.get_scaled_loss(loss)
 
         # Storing the gradients of the loss function with respect to the
         # weights/parameters.
-        gradients = tape.gradient(loss, self.siamese_network.trainable_weights)
+        scaled_gradients = tape.gradient(scaled_loss, self.siamese_network.trainable_weights)
+        gradients = self.optimizer.get_unscaled_gradients(scaled_gradients)
 
         # Applying the gradients on the model using the specified optimizer
         self.optimizer.apply_gradients(
@@ -171,6 +177,7 @@ class SiameseModel(Model):
         
         return {"loss": self.loss_tracker.result()}
 
+    @tf.function
     def test_step(self, data):
         loss = self._compute_loss(data)
 
@@ -178,6 +185,7 @@ class SiameseModel(Model):
         self.loss_tracker.update_state(loss)
         return {"loss": self.loss_tracker.result()}
 
+    @tf.function
     def _compute_loss(self, data):
     
         # data is a tuple of the 2 spectra x and y, and the RF's distance d
