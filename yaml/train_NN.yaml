@@ -22,11 +22,11 @@ spec:
         resources:
           requests:
             cpu: "8"
-            memory: "32Gi"
+            memory: "64Gi"
             nvidia.com/gpu:  "4"
           limits:
             cpu: "8"
-            memory: "32Gi"
+            memory: "64Gi"
             nvidia.com/gpu:  "4"
         command: ["/bin/bash", "-c"]
         args:

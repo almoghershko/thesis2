@@ -67,29 +67,29 @@ gpu.memoryFree
 # In[8]:
 
 if is_notebook:
-    get_ipython().system('echo TF_GPU_THREAD_MODE="gpu_private"')
+    get_ipython().system('export TF_GPU_THREAD_MODE="gpu_private"')
     if N_GPUs>1:
         if N_GPUs==2:
-            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=2')
-            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1"')
+            get_ipython().system('export TF_MIN_GPU_MULTIPROCESSOR_COUNT=2')
+            get_ipython().system('export CUDA_VISIBLE_DEVICES="0,1"')
         if N_GPUs==3:
-            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=3')
-            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2"')
+            get_ipython().system('export TF_MIN_GPU_MULTIPROCESSOR_COUNT=3')
+            get_ipython().system('export CUDA_VISIBLE_DEVICES="0,1,2"')
         if N_GPUs==4:
-            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=4')
-            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3"')
+            get_ipython().system('export TF_MIN_GPU_MULTIPROCESSOR_COUNT=4')
+            get_ipython().system('export CUDA_VISIBLE_DEVICES="0,1,2,3"')
         if N_GPUs==5:
-            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=5')
-            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4"')
+            get_ipython().system('export TF_MIN_GPU_MULTIPROCESSOR_COUNT=5')
+            get_ipython().system('export CUDA_VISIBLE_DEVICES="0,1,2,3,4"')
         if N_GPUs==6:
-            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=6')
-            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5"')
+            get_ipython().system('export TF_MIN_GPU_MULTIPROCESSOR_COUNT=6')
+            get_ipython().system('export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5"')
         if N_GPUs==7:
-            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=7')
-            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6"')
+            get_ipython().system('export TF_MIN_GPU_MULTIPROCESSOR_COUNT=7')
+            get_ipython().system('export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6"')
         if N_GPUs==8:
-            get_ipython().system('echo TF_MIN_GPU_MULTIPROCESSOR_COUNT=8')
-            get_ipython().system('echo CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"')
+            get_ipython().system('export TF_MIN_GPU_MULTIPROCESSOR_COUNT=8')
+            get_ipython().system('export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"')
 
 
 # In[9]:
@@ -530,22 +530,25 @@ def infer_dist_mat(model, X, verbosity):
 
 
 dist_mat = infer_dist_mat(siamese_model, X_train, verbosity)
-to_s3_npy(dist_mat, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'dist_mat.npy'))
+if IsSaveModel:
+    to_s3_npy(dist_mat, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'dist_mat.npy'))
 
 
 # In[ ]:
 
 
 weird_scores = np.mean(dist_mat, axis=1)
-to_s3_npy(weird_scores, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'weird_scores.npy'))
+if IsSaveModel:
+    to_s3_npy(weird_scores, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'weird_scores.npy'))
 
 
 # In[ ]:
 
 
 from sklearn.manifold import TSNE
-sne = TSNE(n_components=2, perplexity=25, metric='precomputed', verbose=1, random_state=seed).fit_transform(dist_mat)
-to_s3_npy(sne, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne.npy'))
+sne = TSNE(n_components=2, perplexity=25, metric='precomputed', verbose=1, random_state=seed, init='random').fit_transform(dist_mat)
+if IsSaveModel:
+    to_s3_npy(sne, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne.npy'))
 
 
 # In[ ]:
@@ -556,7 +559,8 @@ tmp = plt.hist(weird_scores, bins=60, color="g")
 plt.title("Weirdness score histogram")
 plt.ylabel("N")
 plt.xlabel("weirdness score")
-to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'weirdness_scores_histogram.png'))
+if IsSaveModel:
+    to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'weirdness_scores_histogram.png'))
 
 
 # In[ ]:
@@ -570,7 +574,8 @@ plt.title("Distances histogram")
 plt.ylabel("N")
 plt.xlabel("distance")
 
-to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'distances_histogram.png'))
+if IsSaveModel:
+    to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'distances_histogram.png'))
 
 
 # In[ ]:
@@ -589,7 +594,8 @@ clb = fig.colorbar(im_scat, ax=ax)
 clb.ax.set_ylabel('Weirdness', rotation=270)
 plt.show()
 
-to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne_colored_by_weirdness.png'))
+if IsSaveModel:
+    to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne_colored_by_weirdness.png'))
 
 
 # In[ ]:
@@ -608,7 +614,8 @@ clb = fig.colorbar(im_scat, ax=ax)
 clb.ax.set_ylabel('SNR', rotation=270)
 plt.show()
 
-to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne_colored_by_snr.png'))
+if IsSaveModel:
+    to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'tsne_colored_by_snr.png'))
 
 
 # ## Test set
@@ -617,22 +624,25 @@ to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_train_dir_path, 'ts
 
 
 dist_mat_test = infer_dist_mat(siamese_model, X_test, verbosity)
-to_s3_npy(dist_mat_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'dist_mat.npy'))
+if IsSaveModel:
+    to_s3_npy(dist_mat_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'dist_mat.npy'))
 
 
 # In[ ]:
 
 
 weird_scores_test = np.mean(dist_mat_test, axis=1)
-to_s3_npy(weird_scores_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'weird_scores.npy'))
+if IsSaveModel:
+    to_s3_npy(weird_scores_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'weird_scores.npy'))
 
 
 # In[ ]:
 
 
 from sklearn.manifold import TSNE
-sne_test = TSNE(n_components=2, perplexity=25, metric='precomputed', verbose=1, random_state=seed).fit_transform(dist_mat_test)
-to_s3_npy(sne_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne.npy'))
+sne_test = TSNE(n_components=2, perplexity=25, metric='precomputed', verbose=1, random_state=seed, init='random').fit_transform(dist_mat_test)
+if IsSaveModel:
+    to_s3_npy(sne_test, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne.npy'))
 
 
 # In[ ]:
@@ -643,7 +653,8 @@ tmp = plt.hist(weird_scores_test, bins=60, color="g")
 plt.title("Weirdness score histogram")
 plt.ylabel("N")
 plt.xlabel("weirdness score")
-to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'weirdness_scores_histogram.png'))
+if IsSaveModel:
+    to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'weirdness_scores_histogram.png'))
 
 
 # In[ ]:
@@ -657,7 +668,8 @@ plt.title("Distances histogram")
 plt.ylabel("N")
 plt.xlabel("distance")
 
-to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'distances_histogram.png'))
+if IsSaveModel:
+    to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'distances_histogram.png'))
 
 
 # In[ ]:
@@ -676,7 +688,8 @@ clb = fig.colorbar(im_scat, ax=ax)
 clb.ax.set_ylabel('Weirdness', rotation=270)
 plt.show()
 
-to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne_colored_by_weirdness.png'))
+if IsSaveModel:
+    to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne_colored_by_weirdness.png'))
 
 
 # In[ ]:
@@ -695,5 +708,6 @@ clb = fig.colorbar(im_scat, ax=ax)
 clb.ax.set_ylabel('SNR', rotation=270)
 plt.show()
 
-to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne_colored_by_snr.png'))
+if IsSaveModel:
+    to_s3_fig(fig, s3_client, bucket_name, os.path.join(s3_model_test_dir_path, 'tsne_colored_by_snr.png'))
 
