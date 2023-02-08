@@ -109,7 +109,7 @@ class DistanceLayer(layers.Layer):
     @tf.function
     def call(self, x, y):
         #dist = tf.reduce_sum(tf.square(x - y), -1)
-        dist = tf.sqrt(tf.maximum(tf.reduce_sum(tf.square(x - y), -1),1e-9))
+        dist = tf.minimum(tf.sqrt(tf.maximum(tf.reduce_sum(tf.square(x - y), -1),1e-9)),1)
         return dist
         
 class NormalizeDistance(layers.Layer):
@@ -152,7 +152,7 @@ class SiameseModel(Model):
         #print('<<<call>>>: inputs is {0} of len {1}'.format(str(type(inputs)), str(len(inputs))))
         return self.siamese_network(inputs)
 
-    @tf.function
+    #tf.function
     def train_step(self, data):
         # GradientTape is a context manager that records every operation that
         # you do inside. We are using it here to compute the loss so we can get
@@ -177,7 +177,7 @@ class SiameseModel(Model):
         
         return {"loss": self.loss_tracker.result()}
 
-    @tf.function
+    #tf.function
     def test_step(self, data):
         loss = self._compute_loss(data)
 
