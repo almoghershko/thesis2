@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: almoghershko-train-nn-2
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                - NVIDIA-A10
+      containers:
+      - name: container
+        image: almogh/tf-almog
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "8"
+            memory: "64Gi"
+            nvidia.com/gpu:  "4"
+          limits:
+            cpu: "8"
+            memory: "64Gi"
+            nvidia.com/gpu:  "4"
+        command: ["/bin/bash", "-c"]
+        args:
+          - cd root; 
+            git clone https://github.com/almoghershko/thesis2.git;
+            pip install -r thesis/requirements.txt;
+            python thesis2/scripts/train_NN.py $MODEL_NAME &> stdout.txt;
+            aws --endpoint https://s3-west.nrp-nautilus.io s3 cp ./stdout.txt s3://tau-astro/almogh/thesis2/models/$MODEL_NAME/train/;
+            tar -zcvf logs.tar.gz logs;
+            aws --endpoint https://s3-west.nrp-nautilus.io s3 cp ./logs.tar.gz s3://tau-astro/almogh/thesis2/models/$MODEL_NAME/train/;
+        env:
+          - name: "MODEL_NAME"
+            value: "NN2"
+          - name: "TF_MIN_GPU_MULTIPROCESSOR_COUNT"
+            value: "4"
+          - name: "CUDA_VISIBLE_DEVICES"
+            value: "0,1,2,3"
+          - name: "TF_GPU_THREAD_MODE"
+            value: "gpu_private"
+      restartPolicy: Never

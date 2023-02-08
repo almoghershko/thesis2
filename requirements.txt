@@ -1,0 +1,9 @@
+boto3
+progressbar2
+sfdmap
+GPUtil
+bokeh
+holoviews
+pandas==1.4.1
+astropy
+parse
