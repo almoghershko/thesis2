@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: almoghershko-train-nn-2
+  name: almoghershko-train-nn
 spec:
   backoffLimit: 0
   template:
@@ -39,7 +39,7 @@ spec:
             aws --endpoint https://s3-west.nrp-nautilus.io s3 cp ./logs.tar.gz s3://tau-astro/almogh/thesis2/models/$MODEL_NAME/train/;
         env:
           - name: "MODEL_NAME"
-            value: "NN2"
+            value: "NN"
           - name: "TF_MIN_GPU_MULTIPROCESSOR_COUNT"
             value: "4"
           - name: "CUDA_VISIBLE_DEVICES"
