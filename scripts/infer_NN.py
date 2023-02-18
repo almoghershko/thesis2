@@ -13,6 +13,21 @@ except NameError:
     print('Script mode')
 
 
+# In[ ]:
+
+
+if is_notebook:
+    i_slice = 0
+    n_slices = 16
+else:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("i_slice", help="slice index", type=int)
+    parser.add_argument("n_slices", help="number of slices", type=int)
+    args = parser.parse_args()
+    print('args:\n\t'+'\n\t'.join(f'{k} = {v}' for k, v in vars(args).items()))
+
+
 # # Pip Install
 
 # In[ ]:
@@ -114,8 +129,7 @@ from NN import DistanceLayer, SiameseModel, DistillationDataGenerator, L1, L2
 # In[ ]:
 
 
-#data_path_in_bucket = 'almogh/thesis2/data/BigRF/train/spec.npy'
-data_path_in_bucket = 'almogh/thesis2/data/NN/train/spec.npy' # just to test
+data_path_in_bucket = 'almogh/thesis2/data/BigRF/train/spec.npy'
 X = from_s3_npy(s3_client = s3_client,
                 bucket_name = bucket_name,
                 path_in_bucket = data_path_in_bucket)
@@ -126,7 +140,7 @@ X = from_s3_npy(s3_client = s3_client,
 # In[ ]:
 
 
-from NN import infer_dist_mat, DistanceLayer, L1, L2, SiameseModel
+from NN import DistanceLayer, L1, L2, SiameseModel, DistillationDataGenerator, full_dist_mat_from_upper_diag_part
 from s3 import s3_download_model
 import tempfile
 from tensorflow.keras import optimizers, mixed_precision
@@ -159,7 +173,9 @@ with strategy.scope():
     NN.compile(optimizer=optimizer)
     
     # predict
-    dist_mat = infer_dist_mat(NN, X, verbosity=verbosity, dtype=np.float16, batch_size=batch_size, workers=N_GPUs*2, use_multiprocessing=True)
+    
+    data_gen = DistillationDataGenerator(X, np.zeros(shape=(X.shape[0], X.shape[0])), batch_size=batch_size, shuffle=False, seed=42, full_epoch=True, norm=True, i_slice=i_slice, n_slices=n_slices)
+    Z_NN = NN.predict(data_gen, verbose=verbosity, workers=2*N_GPUs, use_multiprocessing=True)
 
 
 # In[ ]:
@@ -169,5 +185,5 @@ with strategy.scope():
 to_s3_npy(dist_mat,
           s3_client = s3_client,
           bucket_name = bucket_name,
-          path_in_bucket = 'almogh/thesis2/eval/inference/NN_dist_mat.npy')
+          path_in_bucket = 'almogh/thesis2/eval/inference/Z_NN_i{0}_n{1}.npy'.format(i_slice, n_slices))
 

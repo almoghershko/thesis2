@@ -13,7 +13,7 @@ from tensorflow.keras import utils
 
 class DistillationDataGenerator(utils.Sequence):
     
-    def __init__(self, X, D, batch_size=32, shuffle=False, seed=42, snr_range_db=None, full_epoch=False, norm=True):
+    def __init__(self, X, D, batch_size=32, shuffle=False, seed=42, snr_range_db=None, full_epoch=False, norm=True, i_slice=0, n_slices=1):
         
         # saving arguments
         self.X = X.astype(np.float32)
@@ -37,6 +37,16 @@ class DistillationDataGenerator(utils.Sequence):
         if self.full_epoch:
             #self.couples = np.transpose([np.tile(np.arange(self.N_samples), self.N_samples), np.repeat(np.arange(self.N_samples), self.N_samples)])
             self.couples = np.stack(np.triu_indices(self.N_samples), axis=1)
+        # I think there should have been an "else" part to randomize the couples array...
+        
+        # slicing
+        assert i_slice<n_slices, 'invalid slice index (i_slice={0}, n_slices={1})'.format(i_slice, n_slices)
+        tmp = np.linspace(0,len(self.couples),n_slices+1).astype(int)
+        i_start = tmp[i_slice]
+        i_end = tmp[i_slice+1]
+        print('slice index {0} takes couples {1}-{2} (non-inclusive) out of {3}'.format(i_slice, i_start, i_end, len(self.couples)))
+        self.couples = self.couples[i_start:i_end]
+            
         self.on_epoch_end()
         
         print('DataGenerator initialized with:')
@@ -213,6 +223,15 @@ def infer_dist_mat(model, X, verbosity, dtype=np.float32, batch_size=128, worker
     # create full distance matrix
     N = int((-1+np.sqrt(1+8*len(Z_NN)))/2)
     D_NN = np.zeros(shape=(N,N), dtype=dtype)
+    D_NN[np.triu_indices(N)] = Z_NN
+    D_NN = D_NN.T
+    D_NN[np.triu_indices(N)] = Z_NN
+    return D_NN
+
+def full_dist_mat_from_upper_diag_part(Z_NN):
+    # create full distance matrix from the upper triangular part
+    N = int((-1+np.sqrt(1+8*len(Z_NN)))/2)
+    D_NN = np.zeros(shape=(N,N), dtype=Z_NN.dtype)
     D_NN[np.triu_indices(N)] = Z_NN
     D_NN = D_NN.T
     D_NN[np.triu_indices(N)] = Z_NN
