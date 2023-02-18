@@ -26,6 +26,8 @@ else:
     parser.add_argument("n_slices", help="number of slices", type=int)
     args = parser.parse_args()
     print('args:\n\t'+'\n\t'.join(f'{k} = {v}' for k, v in vars(args).items()))
+    i_slice = args.i_slice
+    n_slices = args.n_slices
 
 
 # # Pip Install
@@ -173,8 +175,7 @@ with strategy.scope():
     NN.compile(optimizer=optimizer)
     
     # predict
-    
-    data_gen = DistillationDataGenerator(X, np.zeros(shape=(X.shape[0], X.shape[0])), batch_size=batch_size, shuffle=False, seed=42, full_epoch=True, norm=True, i_slice=args.i_slice, n_slices=args.n_slices)
+    data_gen = DistillationDataGenerator(X, D=None, batch_size=batch_size, shuffle=False, seed=42, full_epoch=True, norm=True, i_slice=i_slice, n_slices=n_slices)
     Z_NN = NN.predict(data_gen, verbose=verbosity, workers=2*N_GPUs, use_multiprocessing=True)
 
 
@@ -185,5 +186,5 @@ with strategy.scope():
 to_s3_npy(dist_mat,
           s3_client = s3_client,
           bucket_name = bucket_name,
-          path_in_bucket = 'almogh/thesis2/eval/inference/Z_NN_i{0}_n{1}.npy'.format(args.i_slice, args.n_slices))
+          path_in_bucket = 'almogh/thesis2/eval/inference/Z_NN_i{0}_n{1}.npy'.format(i_slice, n_slices))
 
