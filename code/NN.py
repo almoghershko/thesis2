@@ -206,10 +206,10 @@ class SiameseModel(Model):
         # called automatically.
         return [self.loss_tracker]
 
-def infer_dist_mat(model, X, verbosity, dtype=np.float32, batch_size=128):
+def infer_dist_mat(model, X, verbosity, dtype=np.float32, batch_size=128, workers=1, use_multiprocessing=False):
     # predict
     data_gen = DistillationDataGenerator(X, np.zeros(shape=(X.shape[0], X.shape[0])), batch_size=batch_size, shuffle=False, seed=42, full_epoch=True, norm=True)
-    Z_NN = model.predict(data_gen, verbose=verbosity)
+    Z_NN = model.predict(data_gen, verbose=verbosity, workers=workers, use_multiprocessing=use_multiprocessing)
     # create full distance matrix
     N = int((-1+np.sqrt(1+8*len(Z_NN)))/2)
     D_NN = np.zeros(shape=(N,N), dtype=dtype)
