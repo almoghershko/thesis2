@@ -149,7 +149,7 @@ from tensorflow.keras import optimizers, mixed_precision
 
 custom_objects = {'DistanceLayer': DistanceLayer, 'L1':L1, 'L2':L2, 'SiameseModel':SiameseModel}
 batch_size = 128*N_GPUs
-verbosity = 1 if is_notebook else 2
+verbosity = 2
 
 if N_GPUs>1:
     strategy = tf.distribute.MirroredStrategy()
