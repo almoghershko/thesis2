@@ -114,7 +114,8 @@ from NN import DistanceLayer, SiameseModel, DistillationDataGenerator, L1, L2
 # In[ ]:
 
 
-data_path_in_bucket = 'almogh/thesis2/data/BigRF/train/spec.npy'
+#data_path_in_bucket = 'almogh/thesis2/data/BigRF/train/spec.npy'
+data_path_in_bucket = 'almogh/thesis2/data/NN/train/spec.npy' # just to test
 X = from_s3_npy(s3_client = s3_client,
                 bucket_name = bucket_name,
                 path_in_bucket = data_path_in_bucket)
