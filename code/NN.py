@@ -13,11 +13,11 @@ from tensorflow.keras import utils
 
 class DistillationDataGenerator(utils.Sequence):
     
-    def __init__(self, X, D, batch_size=32, shuffle=False, seed=42, snr_range_db=None, full_epoch=False, norm=True, i_slice=0, n_slices=1):
+    def __init__(self, X, D=None, batch_size=32, shuffle=False, seed=42, snr_range_db=None, full_epoch=False, norm=True, i_slice=0, n_slices=1):
         
         # saving arguments
-        self.X = X.astype(np.float32)
-        self.D = D.astype(np.float32)
+        self.X = X
+        self.D = D
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.full_epoch = full_epoch
@@ -36,22 +36,27 @@ class DistillationDataGenerator(utils.Sequence):
         self.rng = np.random.default_rng(seed)
         if self.full_epoch:
             #self.couples = np.transpose([np.tile(np.arange(self.N_samples), self.N_samples), np.repeat(np.arange(self.N_samples), self.N_samples)])
-            self.couples = np.stack(np.triu_indices(self.N_samples), axis=1)
+            triu = np.triu_indices(self.N_samples)
+            
+            # slicing
+            assert i_slice<n_slices, 'invalid slice index (i_slice={0}, n_slices={1})'.format(i_slice, n_slices)
+            tmp = np.linspace(0,len(triu[0]),n_slices+1).astype(int)
+            i_start = tmp[i_slice]
+            i_end = tmp[i_slice+1]
+            print('slice index {0} takes couples {1}-{2} (non-inclusive) out of {3}'.format(i_slice, i_start, i_end, len(triu[0])))
+            triu = (triu[0][i_start:i_end].astype(np.int32),triu[1][i_start:i_end].astype(np.int32))
+            
+            self.couples = np.stack(triu, axis=1)
         # I think there should have been an "else" part to randomize the couples array...
-        
-        # slicing
-        assert i_slice<n_slices, 'invalid slice index (i_slice={0}, n_slices={1})'.format(i_slice, n_slices)
-        tmp = np.linspace(0,len(self.couples),n_slices+1).astype(int)
-        i_start = tmp[i_slice]
-        i_end = tmp[i_slice+1]
-        print('slice index {0} takes couples {1}-{2} (non-inclusive) out of {3}'.format(i_slice, i_start, i_end, len(self.couples)))
-        self.couples = self.couples[i_start:i_end]
             
         self.on_epoch_end()
         
         print('DataGenerator initialized with:')
         print('    X shape = {0}x{1}'.format(self.X.shape[0], self.X.shape[1]))
-        print('    D shape = {0}x{1}'.format(self.D.shape[0], self.D.shape[1]))
+        if self.D==None:
+            print('    D was not given (predict mode)')
+        else:
+            print('    D shape = {0}x{1}'.format(self.D.shape[0], self.D.shape[1]))
         print('    batch_size = {0}'.format(self.batch_size))
         print('    shuffle = {0}'.format(self.shuffle))
         print('    full_epoch = {0}'.format(self.full_epoch))
@@ -79,7 +84,10 @@ class DistillationDataGenerator(utils.Sequence):
         # get the samples
         x = self.X[x_indices,:]
         y = self.X[y_indices,:]
-        d = self.D[x_indices,y_indices]
+        if self.D==None:
+            d = np.zeros(shape=(len(x),len(y)))
+        else:
+            d = self.D[x_indices,y_indices]
         
         # add noise
         if self.noise:
