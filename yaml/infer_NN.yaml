@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: almoghershko-infer-nn-0-16
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                - NVIDIA-A100-80GB-PCIe-MIG-1g.10gb
+      containers:
+      - name: container
+        image: almogh/tf-almog
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "2"
+            memory: "128Gi"
+            nvidia.com/gpu:  "1"
+          limits:
+            cpu: "2"
+            memory: "128Gi"
+            nvidia.com/gpu:  "1"
+        command: ["/bin/bash", "-c"]
+        args:
+          - cd root; 
+            git clone https://github.com/almoghershko/thesis2.git;
+            pip install -r thesis/requirements.txt;
+            python thesis2/scripts/infer_NN.py $I_SLICE $N_SLICE &> NN_infer_stdout.$I_SLICE.$N_SLICE.txt;
+            aws --endpoint https://s3-west.nrp-nautilus.io s3 cp ./NN_infer_stdout.$I_SLICE.$N_SLICE.txt s3://tau-astro/almogh/thesis2/eval/inference/;
+        env:
+          - name: "I_SLICE"
+            value: "0"
+          - name: "N_SLICE"
+            value: "16"
+      restartPolicy: Never
