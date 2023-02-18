@@ -106,18 +106,22 @@ if not (importlib.util.find_spec("tensorflow") is None):
                 path_in_bucket
             )
 
-    def s3_load_TF_model(s3_client, bucket_name, path_in_bucket, model_name='model', custom_objects={}):
+    def s3_download_model(s3_client, bucket_name, path_in_bucket, model_name, tempdir):
         s3_uri = f"s3://{bucket_name}/{path_in_bucket}"
         print('loading from uri: '+s3_uri)
+        # Fetch and save the zip file to the temporary directory
+        s3_client.download_file(
+            bucket_name,
+            path_in_bucket,
+            f"{tempdir}/{model_name}.zip"
+        )
+        # Extract the model zip file within the temporary directory
+        with zipfile.ZipFile(f"{tempdir}/{model_name}.zip") as zip_ref:
+            zip_ref.extractall(f"{tempdir}/{model_name}")
+        return f"{tempdir}/{model_name}"
+            
+    def s3_load_TF_model(s3_client, bucket_name, path_in_bucket, model_name='model', custom_objects={}):
         with tempfile.TemporaryDirectory() as tempdir:
-            # Fetch and save the zip file to the temporary directory
-            s3_client.download_file(
-                bucket_name,
-                path_in_bucket,
-                f"{tempdir}/{model_name}.zip"
-            )
-            # Extract the model zip file within the temporary directory
-            with zipfile.ZipFile(f"{tempdir}/{model_name}.zip") as zip_ref:
-                zip_ref.extractall(f"{tempdir}/{model_name}")
-            # Load the keras model from the temporary directory
-            return tf.keras.models.load_model(f"{tempdir}/{model_name}", custom_objects=custom_objects)
+            s3_download_model(s3_client, bucket_name, path_in_bucket, model_name, tempdir)
+            model = tf.keras.models.load_model(f"{tempdir}/{model_name}", custom_objects=custom_objects)
+        return model
