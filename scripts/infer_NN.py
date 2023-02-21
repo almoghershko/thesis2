@@ -183,7 +183,7 @@ with strategy.scope():
 
 
 # save
-to_s3_npy(dist_mat,
+to_s3_npy(Z_NN,
           s3_client = s3_client,
           bucket_name = bucket_name,
           path_in_bucket = 'almogh/thesis2/eval/inference/Z_NN_i{0}_n{1}.npy'.format(i_slice, n_slices))
