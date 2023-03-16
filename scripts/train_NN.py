@@ -228,6 +228,10 @@ if IsSmallDataSlice:
     gs_val = gs_val[:N_nb]
     gs_test = gs_test[:N_nb]
 
+# # Get SNR pool
+    
+gs_full = from_s3_pkl(s3_client, bucket_name, 'almogh/thesis2/data/BigRF/gs.pkl')
+snr_pool = np.array(gs_full.snMedian)
 
 # # Creating the model
 
@@ -382,8 +386,8 @@ else:
     
 batch_size = 128*N_GPUs
 
-train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=batch_size, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=full_epoch, norm=True)
-val_gen = DistillationDataGenerator(X_val, dist_mat_val, batch_size=batch_size, shuffle=True, seed=seed, snr_range_db=[6,40], full_epoch=full_epoch, norm=True)
+train_gen = DistillationDataGenerator(X_train, dist_mat_train, batch_size=batch_size, shuffle=True, seed=seed, snr_pool, full_epoch=full_epoch, norm=True)
+val_gen = DistillationDataGenerator(X_val, dist_mat_val, batch_size=batch_size, shuffle=True, seed=seed, snr_pool, full_epoch=full_epoch, norm=True)
 
 
 # In[29]:

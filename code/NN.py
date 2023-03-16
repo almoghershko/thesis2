@@ -18,7 +18,7 @@ if not (importlib.util.find_spec("tensorflow") is None):
 
     class DistillationDataGenerator(utils.Sequence):
 
-        def __init__(self, X, D=None, batch_size=32, shuffle=False, seed=42, snr_range_db=None, full_epoch=False, norm=True, i_slice=0, n_slices=1):
+        def __init__(self, X, D=[], batch_size=32, shuffle=False, seed=42, snr_pool=[], full_epoch=False, norm=True, i_slice=0, n_slices=1):
 
             # saving arguments
             self.X = X
@@ -27,9 +27,9 @@ if not (importlib.util.find_spec("tensorflow") is None):
             self.shuffle = shuffle
             self.full_epoch = full_epoch
             self.norm = norm
-            if snr_range_db!=None:
+            if len(snr_pool)==0:
                 self.noise = True
-                self.snr_range_db = snr_range_db
+                self.snr_pool = snr_pool
             else:
                 self.noise = False
 
@@ -58,7 +58,7 @@ if not (importlib.util.find_spec("tensorflow") is None):
 
             print('DataGenerator initialized with:')
             print('    X shape = {0}x{1}'.format(self.X.shape[0], self.X.shape[1]))
-            if self.D==None:
+            if len(self.D)==0:
                 print('    D was not given (predict mode)')
             else:
                 print('    D shape = {0}x{1}'.format(self.D.shape[0], self.D.shape[1]))
@@ -67,8 +67,6 @@ if not (importlib.util.find_spec("tensorflow") is None):
             print('    full_epoch = {0}'.format(self.full_epoch))
             print('    norm = {0}'.format(self.norm))
             print('    noise = {0}'.format(self.noise))
-            if self.noise:
-                print('    snr_range_db = {0}'.format(str(self.snr_range_db)))
 
         def __len__(self):
             if self.full_epoch:
@@ -89,15 +87,14 @@ if not (importlib.util.find_spec("tensorflow") is None):
             # get the samples
             x = self.X[x_indices,:]
             y = self.X[y_indices,:]
-            if self.D==None:
+            if len(self.D)==0:
                 d = np.zeros(shape=(len(x),len(y)))
             else:
                 d = self.D[x_indices,y_indices]
 
             # add noise
             if self.noise:
-                snr_db = np.random.uniform(low=self.snr_range_db[0], high=self.snr_range_db[1], size=None)
-                snr = 10**(snr_db/10)
+                snr = rng.choice(self.snr_pool)
                 N_std_x = np.sqrt((np.std(x,axis=1)**2)/snr)
                 x += N_std_x.reshape(-1,1)*np.random.randn(x.shape[0],x.shape[1])
                 N_std_y = np.sqrt((np.std(y,axis=1)**2)/snr)
