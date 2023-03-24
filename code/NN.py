@@ -27,7 +27,7 @@ if not (importlib.util.find_spec("tensorflow") is None):
             self.shuffle = shuffle
             self.full_epoch = full_epoch
             self.norm = norm
-            if len(snr_pool)==0:
+            if len(snr_pool)>0:
                 self.noise = True
                 self.snr_pool = snr_pool
             else:
