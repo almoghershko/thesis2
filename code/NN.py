@@ -94,7 +94,7 @@ if not (importlib.util.find_spec("tensorflow") is None):
 
             # add noise
             if self.noise:
-                snr = rng.choice(self.snr_pool)
+                snr = self.rng.choice(self.snr_pool)
                 N_std_x = np.sqrt((np.std(x,axis=1)**2)/snr)
                 x += N_std_x.reshape(-1,1)*np.random.randn(x.shape[0],x.shape[1])
                 N_std_y = np.sqrt((np.std(y,axis=1)**2)/snr)
