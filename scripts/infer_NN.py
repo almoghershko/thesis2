@@ -27,7 +27,7 @@ else:
     parser.add_argument("n_slices", help="number of slices", type=int)
     args = parser.parse_args()
     print('args:\n\t'+'\n\t'.join(f'{k} = {v}' for k, v in vars(args).items()))
-    model_name = args.model_name
+    MODEL_NAME = args.model_name
     i_slice = args.i_slice
     n_slices = args.n_slices
 
@@ -165,7 +165,7 @@ with strategy.scope():
     with tempfile.TemporaryDirectory() as tempdir:
         s3_download_model(s3_client = s3_client,
                           bucket_name = bucket_name,
-                          path_in_bucket = 'almogh/thesis2/models/{0}/train/after_50_epochs/model'.format(model_name),
+                          path_in_bucket = 'almogh/thesis2/models/{0}/train/after_50_epochs/model'.format(MODEL_NAME),
                           model_name = model_name,
                           tempdir = tempdir)
         NN = tf.keras.models.load_model(f"{tempdir}/{model_name}", custom_objects=custom_objects)
@@ -188,5 +188,5 @@ with strategy.scope():
 to_s3_npy(Z_NN,
           s3_client = s3_client,
           bucket_name = bucket_name,
-          path_in_bucket = 'almogh/thesis2/eval/inference/Z_{0}_i{1}_n{2}.npy'.format(model_name, i_slice, n_slices))
+          path_in_bucket = 'almogh/thesis2/eval/inference/Z_{0}_i{1}_n{2}.npy'.format(MODEL_NAME, i_slice, n_slices))
 
