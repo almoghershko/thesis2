@@ -177,7 +177,7 @@ with strategy.scope():
     NN.compile(optimizer=optimizer)
     
     # predict
-    data_gen = DistillationDataGenerator(X, D=None, batch_size=batch_size, shuffle=False, seed=42, full_epoch=True, norm=True, i_slice=i_slice, n_slices=n_slices)
+    data_gen = DistillationDataGenerator(X, D=[], batch_size=batch_size, shuffle=False, seed=42, full_epoch=True, norm=True, i_slice=i_slice, n_slices=n_slices)
     Z_NN = NN.predict(data_gen, verbose=verbosity, workers=2*N_GPUs, use_multiprocessing=True)
 
 
