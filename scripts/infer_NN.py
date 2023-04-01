@@ -23,11 +23,13 @@ else:
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("model_name", help="the name of the model", type=str)
+    parser.add_argument("epochs_num", help="number of epochs training", type=int)
     parser.add_argument("i_slice", help="slice index", type=int)
     parser.add_argument("n_slices", help="number of slices", type=int)
     args = parser.parse_args()
     print('args:\n\t'+'\n\t'.join(f'{k} = {v}' for k, v in vars(args).items()))
     MODEL_NAME = args.model_name
+    EPOCHS_NUM = args.epochs_num
     i_slice = args.i_slice
     n_slices = args.n_slices
 
@@ -165,7 +167,7 @@ with strategy.scope():
     with tempfile.TemporaryDirectory() as tempdir:
         s3_download_model(s3_client = s3_client,
                           bucket_name = bucket_name,
-                          path_in_bucket = 'almogh/thesis2/models/{0}/train/after_50_epochs/model'.format(MODEL_NAME),
+                          path_in_bucket = 'almogh/thesis2/models/{0}/train/after_{1}_epochs/model'.format(MODEL_NAME,EPOCHS_NUM),
                           model_name = model_name,
                           tempdir = tempdir)
         NN = tf.keras.models.load_model(f"{tempdir}/{model_name}", custom_objects=custom_objects)
