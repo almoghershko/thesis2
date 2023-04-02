@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: almoghershko-infer-nn2-0-0
+  name: almoghershko-infer-nn2-0-16
 spec:
   backoffLimit: 0
   template:
@@ -15,6 +15,10 @@ spec:
                 operator: In
                 values:
                 - NVIDIA-A100-80GB-PCIe-MIG-1g.10gb
+      tolerations:
+      - effect: NoSchedule
+        key: nautilus.io/sdsu-fix
+        operator: Exists
       containers:
       - name: container
         image: almogh/tf-almog
@@ -33,11 +37,13 @@ spec:
           - cd root; 
             git clone https://github.com/almoghershko/thesis2.git;
             pip install -r thesis/requirements.txt;
-            python thesis2/scripts/infer_NN.py $MODEL_NAME $I_SLICE $N_SLICE &> $MODEL_NAME.infer_stdout.$I_SLICE.$N_SLICE.txt;
+            python thesis2/scripts/infer_NN.py $MODEL_NAME $EPOCHS_NUM $I_SLICE $N_SLICE &> $MODEL_NAME.infer_stdout.$I_SLICE.$N_SLICE.txt;
             aws --endpoint https://s3-west.nrp-nautilus.io s3 cp ./$MODEL_NAME.infer_stdout.$I_SLICE.$N_SLICE.txt s3://tau-astro/almogh/thesis2/eval/inference/;
         env:
           - name: "MODEL_NAME"
             value: "NN2"
+          - name: "EPOCHS_NUM"
+            value: "35"
           - name: "I_SLICE"
             value: "0"
           - name: "N_SLICE"
