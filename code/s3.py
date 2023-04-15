@@ -83,6 +83,15 @@ def from_s3_pkl(s3_client, bucket_name, path_in_bucket: str):
     data = pickle.load(data_io)
     return data
 
+def from_s3_pickle(s3_client, bucket_name, path_in_bucket: str):
+    s3_uri = f"s3://{bucket_name}/{path_in_bucket}"
+    print('loading from uri: '+s3_uri)
+    data_io = io.BytesIO()
+    s3_client.download_fileobj(bucket_name, path_in_bucket, data_io)
+    data_io.seek(0)
+    data = pd.read_pickle(data_io)
+    return data
+
 def from_s3_parquet(s3_client, bucket_name, path_in_bucket: str):
     s3_uri = f"s3://{bucket_name}/{path_in_bucket}"
     print('loading from uri: '+s3_uri)
@@ -90,6 +99,15 @@ def from_s3_parquet(s3_client, bucket_name, path_in_bucket: str):
     s3_client.download_fileobj(bucket_name, path_in_bucket, data_io)
     data_io.seek(0)
     data = pd.read_parquet(data_io)
+    return data
+
+def from_s3_csv(s3_client, bucket_name, path_in_bucket: str):
+    s3_uri = f"s3://{bucket_name}/{path_in_bucket}"
+    print('loading from uri: '+s3_uri)
+    data_io = io.BytesIO()
+    s3_client.download_fileobj(bucket_name, path_in_bucket, data_io)
+    data_io.seek(0)
+    data = pd.read_csv(data_io)
     return data
     
 # The following instructions are only imported if tensorflow exists
